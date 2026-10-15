@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Transaction History</h1>
+    <p class="page-subtitle">All recorded expenses</p>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <a href="{{ url_for('export_csv', month=sel_month, category=sel_cat, pay=sel_pay, q=query) }}" class="btn btn-outline" id="export-btn">
+      ⬇ Export CSV
+    </a>
+    <a href="{{ url_for('add_expense') }}" class="btn btn-primary" id="history-add-btn">
+      + Add Expense
+    </a>
+  </div>
+</div>
+
+<!-- ===== Filters ===== -->
+<div class="section-card filter-card" id="filters-section">
+  <form method="get" action="{{ url_for('expenses') }}" class="filter-form" id="filter-form">
+    <div class="filter-group" style="flex: 2;">
+      <label for="search-input">Search</label>
+      <input type="search" name="q" id="search-input" class="form-input"
+             placeholder="Search title or notes…" value="{{ query }}"
+             style="padding: 7px 10px; font-size:0.825rem;" />
+    </div>
+
+    <div class="filter-group">
+      <label for="month-filter">Month</label>
+      <select name="month" id="month-filter" class="form-input form-select" style="width:auto; padding: 7px 32px 7px 10px; font-size:0.825rem;" onchange="this.form.submit()">
+        <option value="">All months</option>
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == sel_month %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="cat-filter">Category</label>
+      <select name="category" id="cat-filter" class="form-input form-select" style="width:auto; padding: 7px 32px 7px 10px; font-size:0.825rem;" onchange="this.form.submit()">
+        <option value="">All categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat == sel_cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="pay-filter">Paid via</label>
+      <select name="pay" id="pay-filter" class="form-input form-select" style="width:auto; padding: 7px 32px 7px 10px; font-size:0.825rem;" onchange="this.form.submit()">
+        <option value="">All methods</option>
+        {% for pm in payment_methods %}
+          <option value="{{ pm }}" {% if pm == sel_pay %}selected{% endif %}>{{ pm }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group" style="align-self:flex-end;">
+      <button type="submit" class="btn btn-primary btn-sm" id="search-btn">Search</button>
+    </div>
+
+    {% if sel_month or sel_cat or sel_pay or query %}
+    <div class="filter-group filter-clear" style="justify-content:flex-end; align-self:flex-end;">
+      <a href="{{ url_for('expenses') }}" class="btn btn-outline btn-sm" id="clear-filters-btn">× Clear</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ===== Table ===== -->
+<div class="section-card" id="expenses-table-section">
+  <div class="section-header-row">
+    <h2 class="section-title">
+      {% if total_count %}
+        {{ total_count }} expense{{ 's' if total_count != 1 }}
+      {% else %}
+        Expenses
+      {% endif %}
+    </h2>
+    {% if total_count %}
+    <span class="total-badge">{{ fmt_inr(total_p) }}</span>
+    {% endif %}
+  </div>
+
+  {% if rows %}
+  <div class="table-wrapper">
+    <table class="expense-table" id="expenses-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Category</th>
+          <th>Paid via</th>
+          <th>Date</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for exp in rows %}
+        <tr class="table-row">
+          <td>
+            <span class="table-title">{{ exp['title'] }}</span>
+            {% if exp['notes'] %}
+              <span class="table-note">{{ exp['notes'] }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="cat-pill">{{ exp['category'] }}</span>
+          </td>
+          <td><span class="pay-pill">{{ exp['payment_method'] or '—' }}</span></td>
+          <td class="date-cell">{{ exp['expense_date'] }}</td>
+          <td class="text-right amount-cell">{{ fmt_inr(exp['amount_p']) }}</td>
+          <td class="text-right actions-cell">
+            <a href="{{ url_for('edit_expense', expense_id=exp['id']) }}"
+               class="btn btn-sm btn-outline"
+               id="edit-btn-{{ exp['id'] }}">Edit</a>
+
+            <form method="post"
+                  action="{{ url_for('delete_expense', expense_id=exp['id']) }}"
+                  class="inline-form"
+                  id="delete-form-{{ exp['id'] }}"
+                  onsubmit="return confirmDelete(this.dataset.title)"
+                  data-title="{{ exp['title'] | e }}">
+              <button type="submit"
+                      class="btn btn-sm btn-danger"
+                      id="delete-btn-{{ exp['id'] }}">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Pagination ===== -->
+  {% if total_pages > 1 %}
+  <nav class="pagination" aria-label="Expense pages">
+    {% if page > 1 %}
+      <a class="page-link" href="{{ url_for('expenses', page=page-1, **base_args) }}">← Prev</a>
+    {% else %}
+      <span class="page-link disabled">← Prev</span>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == page %}
+        <span class="page-link current">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+        <a class="page-link" href="{{ url_for('expenses', page=p, **base_args) }}">{{ p }}</a>
+      {% elif p == page - 3 or p == page + 3 %}
+        <span class="page-link dots">…</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+      <a class="page-link" href="{{ url_for('expenses', page=page+1, **base_args) }}">Next →</a>
+    {% else %}
+      <span class="page-link disabled">Next →</span>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state large-empty">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+    </div>
+    <p class="empty-title">No expenses found</p>
+    <p class="empty-sub">
+      {% if sel_month or sel_cat or sel_pay or query %}
+        Try adjusting your filters, or
+        <a href="{{ url_for('expenses') }}">view all</a>.
+      {% else %}
+        <a href="{{ url_for('add_expense') }}">Add your first expense</a>
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

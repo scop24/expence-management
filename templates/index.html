@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<!-- Page header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Overview</h1>
+    <p class="page-subtitle">{{ month_label }}</p>
+  </div>
+  <a href="{{ url_for('add_expense') }}" class="btn btn-primary" id="dashboard-add-btn">
+    + Add Expense
+  </a>
+</div>
+
+<!-- ===== Summary Stats ===== -->
+<div class="stats-row" id="summary-stats">
+
+  <div class="stat-item">
+    <p class="stat-label">Spent this month</p>
+    <p class="stat-value">{{ fmt_inr(total_month_p) }}</p>
+    {% if budget_p > 0 %}
+      {% set pct = ((total_month_p / budget_p) * 100) | int %}
+      <p class="stat-sub">{{ pct }}% of budget used</p>
+    {% endif %}
+  </div>
+
+  <div class="stat-item">
+    <p class="stat-label">Monthly budget</p>
+    <p class="stat-value">{{ fmt_inr(budget_p) }}</p>
+    {% if budget_p == 0 %}
+      <p class="stat-sub"><a href="{{ url_for('budget') }}">Set a budget →</a></p>
+    {% endif %}
+  </div>
+
+  <div class="stat-item">
+    <p class="stat-label">Remaining</p>
+    <p class="stat-value {% if remaining_p < 0 %}danger{% elif budget_p > 0 and remaining_p < budget_p * 0.2 %}warning{% endif %}">
+      {{ fmt_inr(remaining_p) }}
+    </p>
+    {% if remaining_p < 0 %}
+      <p class="stat-sub" style="color: var(--danger)">Over by {{ fmt_inr(-remaining_p) }}</p>
+    {% elif budget_p > 0 and remaining_p < budget_p * 0.2 %}
+      <p class="stat-sub" style="color: var(--warning)">Running low</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ===== Budget Progress Bar ===== -->
+{% if budget_p > 0 %}
+<div class="section-card" id="budget-progress-section" style="padding: 16px 24px; margin-bottom: 20px;">
+  {% set pct = [(total_month_p / budget_p * 100), 100] | min | int %}
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+    <span style="font-size:0.75rem; font-weight:500; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Budget usage</span>
+    <span style="font-size:0.775rem; color:var(--text-secondary); font-variant-numeric:tabular-nums;">{{ fmt_inr(total_month_p) }} of {{ fmt_inr(budget_p) }}</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar
+      {% if pct >= 100 %}progress-danger
+      {% elif pct >= 80 %}progress-warning
+      {% else %}progress-safe{% endif %}"
+      style="width: {{ pct }}%">
+      <span class="progress-label">{{ pct }}%</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ===== Smart Insights ===== -->
+{% if insights %}
+<div class="section-card" id="insights-section" style="margin-bottom: 20px;">
+  <h2 class="section-title">💡 Insights</h2>
+  <ul class="insights-list">
+    <li>
+      <span class="insight-icon">🏆</span>
+      <span><strong>{{ insights.top_category }}</strong> is your biggest spend at
+        <strong>{{ insights.top_share }}%</strong> of this month's total.</span>
+    </li>
+    <li>
+      <span class="insight-icon">📊</span>
+      <span>You're averaging <strong>{{ fmt_inr(insights.daily_avg_p) }}/day</strong>.
+        At this pace you'll hit <strong>{{ fmt_inr(insights.projected_p) }}</strong>
+        by month-end ({{ insights.days_left }} days left).</span>
+    </li>
+    {% if budget_p > 0 %}
+    <li>
+      <span class="insight-icon">{% if insights.projected_over_p > 0 %}🚨{% else %}✅{% endif %}</span>
+      {% if insights.projected_over_p > 0 %}
+        <span>Projected to <strong>overshoot</strong> your budget by
+          <strong>{{ fmt_inr(insights.projected_over_p) }}</strong> — time to slow down.</span>
+      {% else %}
+        <span>On track to stay <strong>within</strong> budget. Nice discipline.</span>
+      {% endif %}
+    </li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- ===== Two columns: Category breakdown + Recent transactions ===== -->
+<div class="two-col-grid" id="main-panels">
+
+  <!-- Category Breakdown -->
+  <div class="section-card" id="category-breakdown">
+    <h2 class="section-title">Spending by Category</h2>
+    {% if cat_rows %}
+      <div class="chart-container">
+        <canvas id="categoryChart" width="200" height="200"></canvas>
+      </div>
+      <ul class="category-legend" id="categoryLegend">
+        {% for row in cat_rows %}
+        <li class="legend-item">
+          <span class="legend-dot" style="background:var(--cat-color-{{ loop.index0 % 9 }})"></span>
+          <span class="legend-label">{{ row['category'] }}</span>
+          <span class="legend-value">{{ fmt_inr(row['total']) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <!-- Data for JS chart -->
+      <script id="categoryData" type="application/json">
+        {{ cat_rows | map(attribute='category') | list | tojson }}
+      </script>
+      <script id="categoryAmounts" type="application/json">
+        {{ cat_rows | map(attribute='total') | list | tojson }}
+      </script>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM9 9h6M9 12h6M9 15h4"/></svg>
+        </div>
+        <p class="empty-title">No spending yet</p>
+        <p class="empty-sub">Add an expense to see your breakdown.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="section-card" id="recent-transactions">
+    <div class="section-header-row">
+      <h2 class="section-title">Recent Transactions</h2>
+      <a href="{{ url_for('expenses') }}" class="view-all-link" id="view-all-link">View all →</a>
+    </div>
+
+    {% if recent %}
+      <ul class="txn-list">
+        {% for exp in recent %}
+        <li class="txn-item">
+          <div class="txn-cat-badge">
+            {{ exp['category'][:2] | upper }}
+          </div>
+          <div class="txn-details">
+            <span class="txn-title">{{ exp['title'] }}</span>
+            <span class="txn-meta">{{ exp['category'] }} · {{ exp['expense_date'] }}{% if exp['payment_method'] %} · {{ exp['payment_method'] }}{% endif %}</span>
+          </div>
+          <span class="txn-amount">{{ fmt_inr(exp['amount_p']) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h3M12 16h3M9 12h.01M9 16h.01"/></svg>
+        </div>
+        <p class="empty-title">No transactions yet</p>
+        <p class="empty-sub"><a href="{{ url_for('add_expense') }}">Add your first expense</a></p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ===== 6-Month Trend ===== -->
+<div class="section-card" id="trend-section" style="margin-top: 20px;">
+  <h2 class="section-title">Spending Trend — Last 6 Months</h2>
+  <div class="chart-container" style="max-width: 560px; margin: 0 auto;">
+    <canvas id="trendChart" height="180"></canvas>
+  </div>
+  <script id="trendLabels" type="application/json">{{ trend_labels | tojson }}</script>
+  <script id="trendTotals" type="application/json">{{ trend_totals | tojson }}</script>
+</div>
+
+<!-- ===== Per-Category Budgets ===== -->
+{% if cat_budgets %}
+<div class="section-card" id="cat-budget-section" style="margin-top: 20px;">
+  <div class="section-header-row">
+    <h2 class="section-title">Category Budgets</h2>
+    <a href="{{ url_for('budget') }}" class="view-all-link">Manage →</a>
+  </div>
+  <ul class="cat-budget-list">
+    {% for cb in cat_budgets %}
+    <li class="cat-budget-row">
+      <div class="cat-budget-head">
+        <span class="cat-budget-name">{{ cb.category }}</span>
+        <span class="cat-budget-nums">{{ fmt_inr(cb.spent_p) }} / {{ fmt_inr(cb.budget_p) }}</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar
+          {% if cb.pct >= 100 %}progress-danger
+          {% elif cb.pct >= 80 %}progress-warning
+          {% else %}progress-safe{% endif %}"
+          style="width: {{ cb.pct }}%">
+          <span class="progress-label">{{ cb.pct }}%</span>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

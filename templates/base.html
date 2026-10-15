@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SpendWise – A simple expense tracker for students." />
+  <title>{% block title %}SpendWise{% endblock %} · SpendWise</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <!-- Anti-flash: apply saved theme BEFORE first paint -->
+  <script>
+    (function() {
+      try {
+        if (localStorage.getItem('sw-theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch(e) {}
+    }());
+  </script>
+</head>
+<body>
+
+  <!-- ===== Sidebar ===== -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">S</div>
+      <span class="brand-name">SpendWise</span>
+    </div>
+
+    <ul class="nav-links">
+      <li>
+        <a href="{{ url_for('index') }}"
+           class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+           id="nav-dashboard">
+          <span class="nav-icon">▦</span>
+          <span class="nav-text">Overview</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('add_expense') }}"
+           class="nav-link {% if request.endpoint == 'add_expense' %}active{% endif %}"
+           id="nav-add">
+          <span class="nav-icon">+</span>
+          <span class="nav-text">Add Expense</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('expenses') }}"
+           class="nav-link {% if request.endpoint == 'expenses' %}active{% endif %}"
+           id="nav-history">
+          <span class="nav-icon">≡</span>
+          <span class="nav-text">History</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('budget') }}"
+           class="nav-link {% if request.endpoint == 'budget' %}active{% endif %}"
+           id="nav-budget">
+          <span class="nav-icon">◎</span>
+          <span class="nav-text">Budget</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light / dark mode">
+        <span class="theme-toggle-label">
+          <span class="theme-toggle-icon" id="themeIcon">☀️</span>
+          <span id="themeLabel">Light mode</span>
+        </span>
+        <span class="theme-toggle-track">
+          <span class="theme-toggle-thumb"></span>
+        </span>
+      </button>
+      <small style="display:block; text-align:center; color:var(--text-muted); font-size:0.68rem;">© 2024 SpendWise</small>
+    </div>
+  </nav>
+
+  <!-- ===== Mobile Header ===== -->
+  <header class="mobile-header">
+    <button class="hamburger" id="hamburger" aria-label="Open menu">☰</button>
+    <div class="mobile-brand">SpendWise</div>
+  </header>
+
+  <!-- Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ===== Main Content ===== -->
+  <main class="main-content" id="mainContent">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container" id="flashContainer">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" role="alert">
+              <span class="flash-msg">{{ message }}</span>
+              <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Close">×</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

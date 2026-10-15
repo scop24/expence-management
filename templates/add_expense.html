@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-subtitle">
+      {% if expense_id %}Edit an existing expense{% else %}Record a new expense{% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('expenses') }}" class="btn btn-outline" id="back-btn">← Back</a>
+</div>
+
+<div class="section-card form-card" id="expense-form-card">
+  <form method="post"
+        action="{% if expense_id %}{{ url_for('edit_expense', expense_id=expense_id) }}{% else %}{{ url_for('add_expense') }}{% endif %}"
+        class="expense-form"
+        id="expense-form"
+        novalidate>
+
+    <!-- Title -->
+    <div class="form-group">
+      <label class="form-label" for="title">
+        Title <span class="required">*</span>
+      </label>
+      <input
+        type="text"
+        id="title"
+        name="title"
+        class="form-input"
+        placeholder="e.g. Lunch at canteen"
+        value="{{ form_data.get('title', '') }}"
+        maxlength="120"
+        required
+        autofocus
+      />
+    </div>
+
+    <!-- Amount -->
+    <div class="form-group">
+      <label class="form-label" for="amount">
+        Amount <span class="required">*</span>
+      </label>
+      <div class="input-prefix-wrap">
+        <span class="input-prefix">₹</span>
+        <input
+          type="number"
+          id="amount"
+          name="amount"
+          class="form-input with-prefix"
+          placeholder="0.00"
+          value="{{ form_data.get('amount', '') }}"
+          min="0.01"
+          step="0.01"
+          required
+        />
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label" for="category">
+        Category <span class="required">*</span>
+      </label>
+      <select id="category" name="category" class="form-input form-select" required>
+        <option value="" disabled {% if not form_data.get('category') %}selected{% endif %}>Select a category</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if form_data.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Payment Method -->
+    <div class="form-group">
+      <label class="form-label" for="payment_method">
+        Paid via
+      </label>
+      <select id="payment_method" name="payment_method" class="form-input form-select">
+        {% for pm in payment_methods %}
+          <option value="{{ pm }}" {% if form_data.get('payment_method', 'UPI') == pm %}selected{% endif %}>{{ pm }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Date -->
+    <div class="form-group">
+      <label class="form-label" for="expense_date">
+        Date <span class="required">*</span>
+      </label>
+      <input
+        type="date"
+        id="expense_date"
+        name="expense_date"
+        class="form-input"
+        value="{{ form_data.get('expense_date', '') }}"
+        required
+      />
+    </div>
+
+    <!-- Notes -->
+    <div class="form-group">
+      <label class="form-label" for="notes">
+        Notes <span class="optional">(optional)</span>
+      </label>
+      <textarea
+        id="notes"
+        name="notes"
+        class="form-input form-textarea"
+        placeholder="Any additional details…"
+        maxlength="300"
+        rows="3"
+      >{{ form_data.get('notes', '') }}</textarea>
+    </div>
+
+    <!-- Submit -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        {% if expense_id %}Save Changes{% else %}Add Expense{% endif %}
+      </button>
+      <a href="{{ url_for('expenses') }}" class="btn btn-outline" id="cancel-btn">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
